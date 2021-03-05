@@ -21,7 +21,10 @@ UL_DEBUG_DECLARE_MASK(hwclock);
 
 struct hwclock_control {
 	char *date_opt;
-	char *adj_file_name;
+
+	const char *drift_file_name;	/* adjtime file with drift status */
+	const char *mode_file_name;	/* adjtime file with UTC/LOCAL */
+
 	double rtc_delay;	/* --delay <seconds> */
 #if defined(__linux__) && defined(__alpha__)
 	char *epoch_option;

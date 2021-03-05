@@ -204,9 +204,15 @@ hw_clock_is_utc(const struct hwclock_control *ctl,
 		ret = 1;	/* --utc explicitly given on command line */
 	else if (ctl->local_opt)
 		ret = 0;	/* --localtime explicitly given */
-	else
-		/* get info from adjtime file - default is UTC */
-		ret = (adjtime->local_utc != LOCAL);
+	else {
+		int rc = -1;
+
+		if (!adjtime || strcmp(ctl->mode_file_name, ctl->drift_file_name) != 0)
+			/* no adjtime read, or mode requested from a different file */
+			ret = ul_hwclock_mode_is_utc(ctl->mode_file_name, &rc);
+		if (rc != 0)
+			ret = (adjtime->local_utc != LOCAL);
+	}
 
 	if (ctl->verbose)
 		printf(_("Assuming hardware clock is kept in %s time.\n"),
@@ -228,12 +234,15 @@ static int read_adjtime(const struct hwclock_control *ctl,
 	char line2[81];		/* String: second line of adjtime file */
 	char line3[81];		/* String: third line of adjtime file */
 
-	if (access(ctl->adj_file_name, R_OK) != 0)
+	if (access(ctl->drift_file_name, R_OK) != 0)
 		return EXIT_SUCCESS;
 
-	adjfile = fopen(ctl->adj_file_name, "r");	/* open file for reading */
+	if (ctl->verbose)
+		printf(_("Reading %s\n"), ctl->drift_file_name);
+
+	adjfile = fopen(ctl->drift_file_name, "r");	/* open file for reading */
 	if (adjfile == NULL) {
-		warn(_("cannot open %s"), ctl->adj_file_name);
+		warn(_("cannot open %s"), ctl->drift_file_name);
 		return EXIT_FAILURE;
 	}
 
@@ -894,18 +903,18 @@ static int save_adjtime(const struct hwclock_control *ctl,
 
 	if (ctl->verbose){
 		printf(_("New %s data:\n%s"),
-		       ctl->adj_file_name, content);
+		       ctl->drift_file_name, content);
 	}
 
 	if (!ctl->testing) {
-		fp = fopen(ctl->adj_file_name, "w");
+		fp = fopen(ctl->drift_file_name, "w");
 		if (fp == NULL) {
-			warn(_("cannot open %s"), ctl->adj_file_name);
+			warn(_("cannot open %s"), ctl->drift_file_name);
 			return EXIT_FAILURE;
 		}
 
 		if (fputs(content, fp) < 0 || close_stream(fp) != 0) {
-			warn(_("cannot update %s"), ctl->adj_file_name);
+			warn(_("cannot update %s"), ctl->drift_file_name);
 			return EXIT_FAILURE;
 		}
 	}
@@ -1150,6 +1159,8 @@ static void out_version(void)
 static void __attribute__((__noreturn__))
 usage(void)
 {
+	const char *drift_file = ul_hwclock_get_drift_file();
+
 	fputs(USAGE_HEADER, stdout);
 	printf(_(" %s [function] [option...]\n"), program_invocation_short_name);
 
@@ -1185,9 +1196,12 @@ usage(void)
 #endif
 	puts(_("     --update-drift   update the RTC drift factor"));
 	printf(_(
-	       "     --noadjfile      do not use %1$s\n"), _PATH_ADJTIME);
+	       "     --noadjfile      do not use %s\n"), drift_file);
 	printf(_(
-	       "     --adjfile <file> use an alternate file to %1$s\n"), _PATH_ADJTIME);
+	       "     --drift-file <file> use an alternate file to %s\n"), drift_file);
+	printf(_(
+	       "     --mode-file <file> use an alternate file to %s\n"), ul_hwclock_get_mode_file());
+
 	puts(_("     --test           dry run; implies --verbose"));
 	puts(_(" -v, --verbose        display more details"));
 	fputs(USAGE_SEPARATOR, stdout);
@@ -1213,7 +1227,8 @@ int main(int argc, char **argv)
 
 	/* Long only options. */
 	enum {
-		OPT_ADJFILE = CHAR_MAX + 1,
+		OPT_DRIFTFILE = CHAR_MAX + 1,
+		OPT_MODEFILE,
 		OPT_DATE,
 		OPT_DELAY,
 		OPT_DIRECTISA,
@@ -1255,7 +1270,9 @@ int main(int argc, char **argv)
 #ifdef __linux__
 		{ "rtc",          required_argument, NULL, 'f'            },
 #endif
-		{ "adjfile",      required_argument, NULL, OPT_ADJFILE    },
+		{ "adjfile",      required_argument, NULL, OPT_DRIFTFILE  },	/* deprecated */
+		{ "drift-file",   required_argument, NULL, OPT_DRIFTFILE  },
+		{ "mode-file",    required_argument, NULL, OPT_MODEFILE   },
 		{ "systz",        no_argument,       NULL, OPT_SYSTZ      },
 		{ "predict",      no_argument,       NULL, OPT_PREDICT    },
 		{ "get",          no_argument,       NULL, OPT_GET        },
@@ -1268,7 +1285,7 @@ int main(int argc, char **argv)
 		  OPT_GET, OPT_GETEPOCH, OPT_PREDICT,
 		  OPT_SET, OPT_SETEPOCH, OPT_SYSTZ },
 		{ 'l', 'u' },
-		{ OPT_ADJFILE, OPT_NOADJFILE },
+		{ OPT_DRIFTFILE, OPT_NOADJFILE },
 		{ OPT_NOADJFILE, OPT_UPDATE },
 		{ 0 }
 	};
@@ -1376,8 +1393,11 @@ int main(int argc, char **argv)
 		case OPT_DELAY:
 			ctl.rtc_delay = strtod_or_err(optarg, "invalid --delay argument");
 			break;
-		case OPT_ADJFILE:
-			ctl.adj_file_name = optarg;	/* --adjfile */
+		case OPT_DRIFTFILE:
+			ctl.drift_file_name = optarg;	/* --drift-file */
+			break;
+		case OPT_MODEFILE:
+			ctl.mode_file_name = optarg;	/* --mode-file */
 			break;
 		case OPT_SYSTZ:
 			ctl.systz = 1;		/* --systz */
@@ -1415,8 +1435,10 @@ int main(int argc, char **argv)
 		errtryhelp(EXIT_FAILURE);
 	}
 
-	if (!ctl.adj_file_name)
-		ctl.adj_file_name = _PATH_ADJTIME;
+	if (!ctl.drift_file_name)
+		ctl.drift_file_name = ul_hwclock_get_drift_file();
+	if (!ctl.mode_file_name)
+		ctl.mode_file_name = ul_hwclock_get_mode_file();
 
 	if (ctl.update && !ctl.set && !ctl.systohc) {
 		warnx(_("--update-drift requires --set or --systohc"));

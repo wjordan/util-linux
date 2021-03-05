@@ -74,8 +74,8 @@ the kernel uses the fixed Hardware Clock epoch of 1900.
 Predict what the Hardware Clock will read in the future based upon the
 time given by the
 .B \-\-date
-option and the information in
-.IR @ADJTIME_PATH@ .
+option and the information in clock drift file, see the discussion below,
+under FILES section.
 This is useful, for example, to account for drift when setting a
 Hardware Clock wakeup (aka alarm). See
 .BR \%rtcwake (8).
@@ -103,8 +103,8 @@ Showing the Hardware Clock time is the default when no function is specified.
 The
 .B \-\-get
 function also applies drift correction to the time read, based upon the
-information in
-.IR @ADJTIME_PATH@ .
+information in clock drift file, see the discussion below,
+under FILES section.
 Do not use this function if the Hardware Clock is being modified by
 anything other than the current operating system's
 .B \%hwclock
@@ -123,9 +123,8 @@ for the system.  If the Hardware Clock is kept in local time then the time read
 from it must be shifted to the UTC timescale before using it to set the System
 Clock.  The
 .B \%\-\-hctosys
-function does this based upon the information in the
-.I @ADJTIME_PATH@
-file or the command line arguments
+function does this based upon the information in the clock mode file (see below)
+or the command line arguments
 .BR \%\-\-localtime " and " \-\-utc .
 Note: no daylight saving adjustment is made.  See the discussion below, under
 .BR "LOCAL vs UTC" .
@@ -163,13 +162,12 @@ something has changed the Hardware Clock, like NTP's \%'11\ minute\ mode', then
 will set the time incorrectly by including drift compensation.
 .sp
 Drift compensation can be inhibited by setting the drift factor in
-.I @ADJTIME_PATH@
-to zero.  This setting will be persistent as long as the
+drift (adjtime) file to zero.  This setting will be persistent as long as the
 .BR \%\-\-update\-drift " option is not used with " \%\-\-systohc
 at shutdown (or anywhere else).  Another way to inhibit this is by using the
 .BR \%\-\-noadjfile " option when calling the " \%\-\-hctosys
-function.  A third method is to delete the
-.IR @ADJTIME_PATH@ " file."
+function.  A third method is to delete the drift file, see the discussion below,
+under FILES section.
 .B Hwclock
 will then default to using the UTC timescale for the Hardware Clock.  If
 the Hardware Clock is ticking local time it will need to be defined in
@@ -194,8 +192,8 @@ the Hardware Clock while its Linux instance is not running.
 .B \-\-set
 Set the Hardware Clock to the time given by the
 .B \-\-date
-option, and update the timestamps in
-.IR @ADJTIME_PATH@ .
+option, and update the timestamps in clock drift file, see the discussion below,
+under FILES section.
 With the
 .B \%\-\-update-drift
 option also (re)calculate the drift factor.  Try it without the option if
@@ -234,7 +232,7 @@ changed then a reboot would be required to inform the kernel.
 .TP
 .BR \-w , \ \-\-systohc
 Set the Hardware Clock from the System Clock, and update the timestamps in
-.IR @ADJTIME_PATH@ .
+clock drift file, see the discussion below, under FILES section.
 With the
 .B \%\-\-update-drift
 option also (re)calculate the drift factor.  Try it without the option if
@@ -251,8 +249,12 @@ Display help text and exit.
 .SH OPTIONS
 .
 .TP
-.BI \-\-adjfile= filename
-.RI "Override the default " @ADJTIME_PATH@ " file path."
+.BI \-\-drift-file= filename
+.RI "Override the default " @CLOCKDRIFT_PATH@ " file path."
+.
+.TP
+.BI \-\-mode-file= filename
+.RI "Override the default " @CLOCKMODE_PATH@ " file path."
 .
 .TP
 .BI \%\-\-date= date_string
@@ -371,8 +373,8 @@ If you specify neither
 then the one last given with a set function
 .RB ( \-\-set ", " \%\-\-systohc ", or " \%\-\-adjust ),
 as recorded in
-.IR @ADJTIME_PATH@ ,
-will be used.  If the adjtime file doesn't exist, the default is UTC.
+.IR @CLOCKMODE_PATH@ ,
+will be used.  If the clock mode file doesn't exist, the default is UTC.
 .sp
 Note: daylight saving time changes may be inconsistent when the
 Hardware Clock is kept in local time.  See the discussion below, under
@@ -381,7 +383,7 @@ Hardware Clock is kept in local time.  See the discussion below, under
 .TP
 .B \-\-noadjfile
 Disable the facilities provided by
-.IR @ADJTIME_PATH@ .
+.IR @CLOCKDRIFT_PATH@ .
 .B \%hwclock
 will not read nor write to that file with this option.  Either
 .BR \-\-utc " or " \%\-\-localtime
@@ -390,14 +392,14 @@ must be specified when using this option.
 .TP
 .B \-\-test
 Do not actually change anything on the system, that is, the Clocks or
-.I @ADJTIME_PATH@
+.I @CLOCKDRIFT_PATH@
 .RB ( \%\-\-verbose
 is implicit with this option).
 .
 .TP
 .B \-\-update\-drift
 Update the Hardware Clock's drift factor in
-.IR @ADJTIME_PATH@ .
+.IR @CLOCKDRIFT_PATH@ .
 It can only be used with
 .BR \-\-set " or " \%\-\-systohc ,
 .sp
@@ -432,7 +434,7 @@ the RTC is not read).
 .RB "Having " \%hwclock
 calculate the drift factor is a good starting point, but for optimal
 results it will likely need to be adjusted by directly editing the
-.I @ADJTIME_PATH@
+.I @CLOCKDRIFT_PATH@
 file.  For most configurations once a machine's optimal drift factor is
 crafted it should not need to be changed.  Therefore, the old behavior to
 automatically (re)calculate drift was changed and now requires this
@@ -577,9 +579,9 @@ function lets you apply systematic drift corrections to the
 Hardware Clock.
 .PP
 It works like this:
-.BR \%hwclock " keeps a file,"
-.IR @ADJTIME_PATH@ ,
-that keeps some historical information.  This is called the adjtime file.
+.BR \%hwclock " keeps a drift file (aka adjtime file),
+that keeps some historical information.  The file uses adjtime file format,
+see the discussion below, under FILES section.
 .PP
 Suppose you start with no adjtime file.  You issue a
 .B \%hwclock\ \-\-set
@@ -613,7 +615,7 @@ the systematic drift rate is (re)calculated by comparing the fully drift
 corrected current Hardware Clock time with the new set time, from that
 it derives the 24 hour drift rate based on the last calibrated timestamp
 from the adjtime file.  This updated drift factor is then saved in
-.IR @ADJTIME_PATH@ .
+.IR @CLOCKDRIFT_PATH@ .
 .PP
 A small amount of error creeps in when
 the Hardware Clock is set, so
@@ -665,6 +667,12 @@ command line.
 .PP
 You can use an adjtime file that was previously used with the
 .BR \%clock "(8) program with " \%hwclock .
+.PP
+Since v2.37
+.B hwclock
+can read "UTC" or "LOCAL" (line 3) from a different file than clock
+drift infomation. The both files has to use "adjtime" file format.
+See the discussion below, under FILES section.
 .
 .SS Automatic Hardware Clock Synchronization by the Kernel
 You should be aware of another way that the Hardware Clock is kept
@@ -839,8 +847,8 @@ then the System Clock must be set correctly (step 6a) just before doing so.
 .RB "Having " hwclock
 calculate the drift factor is a good starting point, but for optimal
 results it will likely need to be adjusted by directly editing the
-.I @ADJTIME_PATH@
-file.  Continue to test and refine the drift factor until the Hardware
+clock drift file, see the discussion below, under FILES section.
+Continue to test and refine the drift factor until the Hardware
 Clock is corrected properly at startup.  To check this, first make sure
 that the System Time is correct before shutdown and then use
 .BR \%sntp ", or " \%date\ \-Ins
@@ -951,8 +959,15 @@ If this variable is set its value takes precedence over the system
 configured timezone database directory path.
 .SH FILES
 .TP
-.I @ADJTIME_PATH@
-The configuration and state file for hwclock.
+.I @CLOCKMODE_PATH@
+The clock mode (e.g. UTC or LOCAL) file in the "adjtime" file format. For the format see
+also 
+.B The Adjtime File
+above.
+.TP
+.I @CLOCKDRIFT_PATH@
+The clock drift file in the "adjtime" file format. May be the same file as the clock mode
+file. If the file does not exist then defaults to clock mode file (see above).
 .TP
 .I /etc/localtime
 The system timezone file.
