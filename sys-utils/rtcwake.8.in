@@ -56,7 +56,7 @@ entering a system sleep.
 .SH OPTIONS
 .TP
 .BR \-A , " \-\-adjfile " \fIfile
-Specify an alternative path to the adjust file.
+Specify an alternative path to the file with hwclock UTC or LOCAL mode.
 .TP
 .BR \-a , " \-\-auto"
 Read the clock mode (whether the hardware clock is set to UTC or local time)
@@ -167,7 +167,7 @@ Some PC systems can't currently exit sleep states such as \fBmem\fP
 using only the kernel code accessed by this driver.
 They need help from userspace code to make the framebuffer work again.
 .SH FILES
-.I @ADJTIME_PATH@
+.I @CLOCKMODE_PATH@
 .SH HISTORY
 The program was posted several times on LKML and other lists
 before appearing in kernel commit message for Linux 2.6 in the GIT

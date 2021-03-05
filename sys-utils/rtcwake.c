@@ -50,7 +50,6 @@
 # define RTC_AF		0x20	/* Alarm interrupt */
 #endif
 
-#define ADJTIME_ZONE_BUFSIZ		8
 #define SYS_WAKEUP_PATH_TEMPLATE	"/sys/class/rtc/%s/device/power/wakeup"
 #define SYS_POWER_STATE_PATH		"/sys/power/state"
 #define DEFAULT_RTC_DEVICE		"/dev/rtc0"
@@ -83,7 +82,7 @@ enum clock_modes {
 struct rtcwake_control {
 	char *mode_str;			/* name of the requested mode */
 	char **possible_modes;		/* modes listed in /sys/power/state */
-	char *adjfile;			/* adjtime file path */
+	char *clock_mode_file;		/* file in adjtime format with hwclock timezone */
 	enum clock_modes clock_mode;	/* hwclock timezone */
 	time_t sys_time;		/* system time */
 	time_t rtc_time;		/* hardware time */
@@ -104,8 +103,8 @@ static void __attribute__((__noreturn__)) usage(void)
 	fputs(USAGE_OPTIONS, out);
 	fputs(_(" -a, --auto               reads the clock mode from adjust file (default)\n"), out);
 	fprintf(out,
-	      _(" -A, --adjfile <file>     specifies the path to the adjust file\n"
-		"                            the default is %s\n"), _PATH_ADJTIME);
+	      _(" -A, --adjfile <file>     path to the file with hwclock mode\n"
+		"                            the default is %s\n"), ul_hwclock_get_mode_file());
 	fputs(_("     --date <timestamp>   date time of timestamp to wake\n"), out);
 	fputs(_(" -d, --device <device>    select rtc device (rtc0|rtc1|...)\n"), out);
 	fputs(_(" -n, --dry-run            does everything, but suspend\n"), out);
@@ -304,36 +303,6 @@ static void suspend_system(struct rtcwake_control *ctl)
 		errx(EXIT_FAILURE, _("write error"));
 }
 
-static int read_clock_mode(struct rtcwake_control *ctl)
-{
-	FILE *fp;
-	char linebuf[ADJTIME_ZONE_BUFSIZ];
-
-	fp = fopen(ctl->adjfile, "r");
-	if (!fp)
-		return -1;
-	/* skip two lines */
-	if (skip_fline(fp) || skip_fline(fp)) {
-		fclose(fp);
-		return -1;
-	}
-	/* read third line */
-	if (!fgets(linebuf, sizeof linebuf, fp)) {
-		fclose(fp);
-		return -1;
-	}
-
-	if (strncmp(linebuf, "UTC", 3) == 0)
-		ctl->clock_mode = CM_UTC;
-	else if (strncmp(linebuf, "LOCAL", 5) == 0)
-		ctl->clock_mode = CM_LOCAL;
-	else if (ctl->verbose)
-		warnx(_("unexpected third line in: %s: %s"), ctl->adjfile, linebuf);
-
-	fclose(fp);
-	return 0;
-}
-
 static int print_alarm(struct rtcwake_control *ctl, int fd)
 {
 	struct rtc_wkalrm wake;
@@ -424,7 +393,6 @@ int main(int argc, char **argv)
 {
 	struct rtcwake_control ctl = {
 		.mode_str = "suspend",		/* default mode */
-		.adjfile = _PATH_ADJTIME,
 		.clock_mode = CM_AUTO
 	};
 	char *devname = DEFAULT_RTC_DEVICE;
@@ -473,7 +441,7 @@ int main(int argc, char **argv)
 		switch (t) {
 		case 'A':
 			/* for better compatibility with hwclock */
-			ctl.adjfile = optarg;
+			ctl.clock_mode_file = optarg;
 			break;
 		case 'a':
 			ctl.clock_mode = CM_AUTO;
@@ -529,9 +497,11 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (ctl.clock_mode == CM_AUTO && read_clock_mode(&ctl) < 0) {
-		printf(_("%s: assuming RTC uses UTC ...\n"),  program_invocation_short_name);
-		ctl.clock_mode = CM_UTC;
+	if (ctl.clock_mode == CM_AUTO) {
+		ctl.clock_mode = ul_hwclock_mode_is_utc(ctl.clock_mode_file, &rc);
+		if (rc)
+			printf(_("%s: failed to get clock mode; assuming RTC uses UTC\n"),
+					program_invocation_short_name);
 	}
 
 	if (ctl.verbose)
