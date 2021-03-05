@@ -141,6 +141,8 @@ edit_cmd = sed \
 	 -e 's|@usrsbin_execdir[@]|$(usrsbin_execdir)|g' \
 	 -e 's|@VERSION[@]|$(VERSION)|g' \
 	 -e 's|@ADJTIME_PATH[@]|$(ADJTIME_PATH)|g' \
+	 -e 's|@CLOCKMODE_PATH[@]|$(CLOCKMODE_PATH)|g' \
+	 -e 's|@CLOCKDRIFT_PATH[@]|$(CLOCKDRIFT_PATH)|g' \
 	 -e 's|@LIBUUID_VERSION[@]|$(LIBUUID_VERSION)|g' \
 	 -e 's|@LIBMOUNT_VERSION[@]|$(LIBMOUNT_VERSION)|g' \
 	 -e 's|@LIBMOUNT_MAJOR_VERSION[@]|$(LIBMOUNT_MAJOR_VERSION)|g' \

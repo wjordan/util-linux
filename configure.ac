@@ -2572,13 +2572,22 @@ AC_ARG_VAR([SOLIB_LDFLAGS],
 	   [LDFLAGS used for shared libraries])
 
 AC_ARG_VAR([ADJTIME_PATH],
-	   [Path to hwclock adjtime file, default /etc/adjtime])
+	   [Path to adjtime file; fallback if CLOCKMODE_PATH or CLOCKDRIFT_PATH do not exist, default is /etc/adjtime])
 AS_IF([test "x$ADJTIME_PATH" = x], [ADJTIME_PATH="/etc/adjtime"])
-AC_DEFINE_UNQUOTED([CONFIG_ADJTIME_PATH], "$ADJTIME_PATH", [Path to hwclock adjtime file])
+AC_DEFINE_UNQUOTED([CONFIG_ADJTIME_FILE], "$ADJTIME_PATH", [Path to adjtime file])
+
+AC_ARG_VAR([CLOCKMODE_PATH],
+	   [Path to hwclock utc/local setting file, default ADJTIME_PATH])
+AS_IF([test "x$CLOCKMODE_PATH" = x], [CLOCKMODE_PATH=$ADJTIME_PATH])
+AC_DEFINE_UNQUOTED([CONFIG_HWCLOCK_MODE_FILE], "$CLOCKMODE_PATH", [Path to hwclock utc/local mode file])
+
+AC_ARG_VAR([CLOCKDRIFT_PATH],
+	   [Path to hwclock drift status file, default /var/lib/hwclock/drift])
+AS_IF([test "x$CLOCKDRIFT_PATH" = x], [CLOCKDRIFT_PATH="/var/lib/hwclock/drift"])
+AC_DEFINE_UNQUOTED([CONFIG_HWCLOCK_DRIFT_FILE], "$CLOCKDRIFT_PATH", [Path to hwclock drift status file])
 
 
 LIBS=""
-
 
 AC_CONFIG_HEADERS([config.h])
 

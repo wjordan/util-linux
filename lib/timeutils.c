@@ -29,6 +29,7 @@
 #include "nls.h"
 #include "strutils.h"
 #include "timeutils.h"
+#include "pathnames.h"
 
 #define WHITESPACE " \t\n\r"
 
@@ -568,6 +569,59 @@ time_t timegm(struct tm *tm)
 }
 #endif /* HAVE_TIMEGM */
 
+/* hwclock drift information */
+const char *ul_hwclock_get_drift_file(void)
+{
+	if (access(_PATH_HWCLOCK_DRIFT_FILE, F_OK) == 0)
+		return _PATH_HWCLOCK_DRIFT_FILE;
+
+	return ul_hwclock_get_mode_file();
+}
+
+const char *ul_hwclock_get_mode_file(void)
+{
+	if (strcmp(_PATH_HWCLOCK_MODE_FILE, _PATH_ADJTIME) != 0
+	    && access(_PATH_HWCLOCK_MODE_FILE, F_OK) == 0)
+		return _PATH_HWCLOCK_MODE_FILE;
+
+	return _PATH_ADJTIME;	/* backward compatible default */
+}
+
+int ul_hwclock_mode_is_utc(const char *modefile, int *rc)
+{
+	FILE *fp = NULL;
+	char linebuf[8];
+
+	*rc = EINVAL;
+
+	if (!modefile)
+		modefile = ul_hwclock_get_mode_file();
+
+	fp = fopen(modefile, "r");
+	if (!fp) {
+		*rc = errno;
+		goto dflt;
+	}
+	if (skip_fline(fp) || skip_fline(fp))		/* skip two lines */
+		goto dflt;
+	if (!fgets(linebuf, sizeof linebuf, fp))	/* read 3rd line */
+		goto dflt;
+
+	fclose(fp);
+	fp = NULL;
+
+	if (strncmp(linebuf, "LOCAL", 5) == 0) {
+		*rc = 0;
+		return 0;
+	}
+	if (strncmp(linebuf, "UTC", 3) == 0)
+		*rc = 0;
+dflt:
+	if (fp)
+		fclose(fp);
+	return 1;
+}
+
 #ifdef TEST_PROGRAM_TIMEUTILS
 
 int main(int argc, char *argv[])
@@ -576,16 +630,29 @@ int main(int argc, char *argv[])
 	char buf[ISO_BUFSIZ];
 
 	if (argc < 2) {
-		fprintf(stderr, "usage: %s [<time> [<usec>]] | [--timestamp <str>]\n", argv[0]);
+		fprintf(stderr, "usage: %1$s <time> [<usec>]\n"
+				"       %1$s --timestamp <str>\n"
+				"       %1$s --clockmode\n",
+				argv[0]);
 		exit(EXIT_FAILURE);
 	}
 
-	if (strcmp(argv[1], "--timestamp") == 0) {
+	 if (strcmp(argv[1], "--clockmode") == 0) {
+		int rc = 0,
+		    utc = ul_hwclockmode_is_utc(NULL, &rc);
+
+		printf("%s: mode is %s [rc=%d]\n",
+				ul_hwclock_get_mode_file(),
+				utc ? "UTC" : "LOCAL", rc);
+		return rc ? EXIT_FAILURE : EXIT_SUCCESS;
+
+	} else if (strcmp(argv[1], "--timestamp") == 0) {
 		usec_t usec = 0;
 
 		parse_timestamp(argv[2], &usec);
 		tv.tv_sec = (time_t) (usec / 1000000);
 		tv.tv_usec = usec % 1000000;
+
 	} else {
 		tv.tv_sec = strtos64_or_err(argv[1], "failed to parse <time>");
 		if (argc == 3)

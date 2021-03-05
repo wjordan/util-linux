@@ -89,4 +89,8 @@ int strtime_short(const time_t *t, struct timeval *now, int flags, char *buf, si
 extern time_t timegm(struct tm *tm);
 #endif
 
+const char *ul_hwclock_get_drift_file(void);
+const char *ul_hwclock_get_mode_file(void);
+int ul_hwclock_mode_is_utc(const char *modefile, int *rc);
+
 #endif /* UTIL_LINUX_TIME_UTIL_H */

@@ -156,11 +156,9 @@
 #define _PATH_DEV_BYPARTUUID	"/dev/disk/by-partuuid"
 
 /* hwclock paths */
-#ifdef CONFIG_ADJTIME_PATH
-# define _PATH_ADJTIME		CONFIG_ADJTIME_PATH
-#else
-# define _PATH_ADJTIME		"/etc/adjtime"
-#endif
+#define _PATH_HWCLOCK_DRIFT_FILE	CONFIG_HWCLOCK_DRIFT_FILE
+#define _PATH_HWCLOCK_MODE_FILE		CONFIG_HWCLOCK_MODE_FILE
+#define _PATH_ADJTIME			CONFIG_ADJTIME_FILE
 
 #ifdef __ia64__
 # define _PATH_RTC_DEV		"/dev/efirtc"
