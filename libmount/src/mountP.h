@@ -298,6 +298,7 @@ struct libmnt_hookset {
 /* built-in hooks */
 extern const struct libmnt_hookset hookset_mount_legacy;
 extern const struct libmnt_hookset hookset_mkdir;
+extern const struct libmnt_hookset hookset_subdir;
 
 
 extern int mnt_context_init_hooksets(struct libmnt_context *cxt);
@@ -348,8 +349,6 @@ struct libmnt_context
 
 	char	*fstype_pattern;	/* for mnt_match_fstype() */
 	char	*optstr_pattern;	/* for mnt_match_options() */
-
-	char	*subdir;		/* X-mount.subdir= */
 
 	uid_t	tgt_owner;		/* X-mount.owner= */
 	gid_t	tgt_group;		/* X-mount.group= */
