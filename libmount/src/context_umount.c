@@ -947,7 +947,7 @@ int mnt_context_prepare_umount(struct libmnt_context *cxt)
 
 	rc = lookup_umount_fs(cxt);
 	if (!rc)
-		rc = mnt_context_merge_mflags(cxt);
+		rc = mnt_context_merge_api_flags(cxt);
 	if (!rc)
 		rc = evaluate_permissions(cxt);
 

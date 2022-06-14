@@ -433,7 +433,8 @@ extern int mnt_iter_get_direction(struct libmnt_iter *itr)
 /* optmap.c */
 enum {
 	MNT_LINUX_MAP = 1,
-	MNT_USERSPACE_MAP
+	MNT_USERSPACE_MAP,
+	MNT_LINUX_ATTRS_MAP
 };
 extern const struct libmnt_optmap *mnt_get_builtin_optmap(int id);
 
@@ -843,10 +844,17 @@ extern int mnt_context_set_cache(struct libmnt_context *cxt,
 				 struct libmnt_cache *cache);
 extern struct libmnt_cache *mnt_context_get_cache(struct libmnt_context *cxt);
 extern struct libmnt_lock *mnt_context_get_lock(struct libmnt_context *cxt);
+
 extern int mnt_context_set_mflags(struct libmnt_context *cxt,
 				      unsigned long flags);
 extern int mnt_context_get_mflags(struct libmnt_context *cxt,
 				      unsigned long *flags);
+
+extern int mnt_context_set_mattrs(struct libmnt_context *cxt,
+				      unsigned long flags);
+extern int mnt_context_get_mattrs(struct libmnt_context *cxt,
+				      unsigned long *flags);
+
 extern int mnt_context_set_user_mflags(struct libmnt_context *cxt,
 						unsigned long flags);
 extern int mnt_context_get_user_mflags(struct libmnt_context *cxt,

@@ -28,6 +28,7 @@
 #include "list.h"
 #include "debug.h"
 #include "libmount.h"
+#include "mount-api-utils.h"
 
 /*
  * Debug
@@ -373,11 +374,12 @@ struct libmnt_context
 	int	optsmode;	/* fstab optstr mode MNT_OPTSMODE_{AUTO,FORCE,IGNORE} */
 	int	loopdev_fd;	/* open loopdev */
 
-	unsigned long	mountflags;	/* final mount(2) flags */
-	const void	*mountdata;	/* final mount(2) data, string or binary data */
+	const void	*mountdata;	/* mount(2) data, string or binary data, NULL by default  */
 
-	unsigned long	user_mountflags;	/* MNT_MS_* (loop=, user=, ...) */
-	unsigned long	orig_mountflags;	/* original flags (see mnt_context_merge_mflags()) */
+	unsigned long	mountflags;		/* classic kernel MS_* flags (including propagation) */
+	unsigned long	orig_mountflags;	/* original flags (see mnt_context_merge_api_flags()) */
+	unsigned long	user_mountflags;	/* userspace MNT_MS_* (loop=, user=, ...) */
+	unsigned long   mountattrs;		/* new kernel MOUNT_ATTR_* fsmount() and mount_setattr() attributes */
 
 	struct libmnt_cache	*cache;	/* paths cache */
 	struct libmnt_lock	*lock;	/* mtab lock */
@@ -494,7 +496,7 @@ extern int mnt_context_guess_fstype(struct libmnt_context *cxt);
 extern int mnt_context_prepare_helper(struct libmnt_context *cxt,
 				      const char *name, const char *type);
 extern int mnt_context_prepare_update(struct libmnt_context *cxt);
-extern int mnt_context_merge_mflags(struct libmnt_context *cxt);
+extern int mnt_context_merge_api_flags(struct libmnt_context *cxt);
 extern int mnt_context_update_tabs(struct libmnt_context *cxt);
 
 extern int mnt_context_umount_setopt(struct libmnt_context *cxt, int c, char *arg);

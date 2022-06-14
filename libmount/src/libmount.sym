@@ -370,4 +370,6 @@ MOUNT_2_38 {
 MOUNT_2_39 {
 	mnt_context_enable_onlyonce;
 	mnt_context_is_lazy;
+	mnt_context_get_mattrs;
+	mnt_context_set_mattrs;
 } MOUNT_2_38;

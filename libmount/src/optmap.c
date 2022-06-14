@@ -140,6 +140,41 @@ static const struct libmnt_optmap linux_flags_map[] =
 };
 
 /*
+ * fs-independent mount attributes (built-in MNT_LINUX_ATTRS_MAP)
+ */
+static const struct libmnt_optmap linux_attrs_map[] =
+{
+   { "ro",       MOUNT_ATTR_RDONLY },                 /* read-only */
+   { "rw",       MOUNT_ATTR_RDONLY, MNT_INVERT },     /* read-write */
+
+   { "exec",     MOUNT_ATTR_NOEXEC, MNT_INVERT },     /* permit execution of binaries */
+   { "noexec",   MOUNT_ATTR_NOEXEC },                 /* don't execute binaries */
+
+   { "suid",     MOUNT_ATTR_NOSUID, MNT_INVERT },     /* honor suid executables */
+   { "nosuid",   MOUNT_ATTR_NOSUID },                 /* don't honor suid executables */
+
+   { "dev",      MOUNT_ATTR_NODEV, MNT_INVERT },      /* interpret device files  */
+   { "nodev",    MOUNT_ATTR_NODEV },                  /* don't interpret devices */
+
+   { "relatime", MOUNT_ATTR_RELATIME },               /* Update access times relative to mtime/ctime */
+   { "norelatime", MOUNT_ATTR_RELATIME, MNT_INVERT }, /* Update access time without regard to mtime/ctime */
+
+   { "atime",    MOUNT_ATTR_NOATIME, MNT_INVERT },    /* Update access time */
+   { "noatime",	 MOUNT_ATTR_NOATIME },                /* Do not update access time */
+
+   { "strictatime", MOUNT_ATTR_STRICTATIME },         /* Strict atime semantics */
+   { "nostrictatime", MOUNT_ATTR_STRICTATIME, MNT_INVERT }, /* kernel default atime */
+
+   { "diratime", MOUNT_ATTR_NODIRATIME, MNT_INVERT }, /* Update dir access times */
+   { "nodiratime", MOUNT_ATTR_NODIRATIME },           /* Do not update dir access times */
+
+   { "symfollow", MOUNT_ATTR_NOSYMFOLLOW, MNT_INVERT }, /* Don't follow symlinks */
+   { "nosymfollow", MOUNT_ATTR_NOSYMFOLLOW },
+
+   { NULL, 0, 0 }
+};
+
+/*
  * userspace mount option (built-in MNT_USERSPACE_MAP)
  */
 static const struct libmnt_optmap userspace_opts_map[] =
@@ -203,6 +238,9 @@ static const struct libmnt_optmap userspace_opts_map[] =
  * MNT_LINUX_MAP - Linux kernel fs-independent mount options
  *                 (usually MS_* flags, see linux/fs.h)
  *
+ * MNT_LINUX_ATTRS_MAP - Linux kernel fs-independent attributes
+ *                       (MOUNT_ATTR_* flags, see linux/mount.h)
+ *
  * MNT_USERSPACE_MAP - userspace mount(8) specific mount options
  *                     (e.g user=, _netdev, ...)
  *
@@ -212,10 +250,14 @@ const struct libmnt_optmap *mnt_get_builtin_optmap(int id)
 {
 	assert(id);
 
-	if (id == MNT_LINUX_MAP)
+	switch (id) {
+	case MNT_LINUX_MAP:
 		return linux_flags_map;
-	if (id == MNT_USERSPACE_MAP)
+	case MNT_LINUX_ATTRS_MAP:
+		return linux_attrs_map;
+	case MNT_USERSPACE_MAP:
 		return userspace_opts_map;
+	}
 	return NULL;
 }
 

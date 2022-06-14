@@ -275,7 +275,7 @@ static int generate_helper_optstr(struct libmnt_context *cxt, char **optstr)
 		 * mount string in libmount for VFS options).
 		 *
 		 * This use-case makes sense for MS_SECURE flags only (see
-		 * mnt_optstr_get_flags() and mnt_context_merge_mflags()).
+		 * mnt_optstr_get_flags() and mnt_context_merge_api_flags()).
 		 */
 		if (!(cxt->mountflags & MS_NOEXEC))
 			mnt_optstr_append_option(optstr, "exec", NULL);
@@ -354,7 +354,7 @@ static int evaluate_permissions(struct libmnt_context *cxt)
 
 		/*
 		 * MS_OWNERSECURE and MS_SECURE mount options are already
-		 * applied by mnt_optstr_get_flags() in mnt_context_merge_mflags()
+		 * applied by mnt_optstr_get_flags() in mnt_context_merge__api_flags()
 		 * if "user" (but no user=<name> !) options is set.
 		 *
 		 * Let's ignore all user=<name> (if <name> is set) requests.
@@ -846,7 +846,7 @@ int mnt_context_prepare_mount(struct libmnt_context *cxt)
 
 	rc = mnt_context_apply_fstab(cxt);
 	if (!rc)
-		rc = mnt_context_merge_mflags(cxt);
+		rc = mnt_context_merge_api_flags(cxt);
 	if (!rc)
 		rc = evaluate_permissions(cxt);
 	if (!rc)

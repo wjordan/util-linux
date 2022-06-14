@@ -1681,7 +1681,7 @@ int mnt_context_set_mflags(struct libmnt_context *cxt, unsigned long flags)
 /**
  * mnt_context_get_mflags:
  * @cxt: mount context
- * @flags: returns MS_* mount flags
+ * @flags: returns MS_* kernel mount(2) mount flags
  *
  * Converts mount options string to MS_* flags and bitwise-OR the result with
  * the already defined flags (see mnt_context_set_mflags()).
@@ -1716,6 +1716,74 @@ int mnt_context_get_mflags(struct libmnt_context *cxt, unsigned long *flags)
 		}
 		/* Add flags defined by mnt_context_set_mflags */
 		*flags |= cxt->mountflags;
+	}
+	return rc;
+}
+
+/**
+ * mnt_context_set_mattrs:
+ * @cxt: mount context
+ * @flags: MOUNT_ATTR_* flags (see linux/mount.h)
+ *
+ * Returns: 0 on success, negative number in case of error.
+ */
+int mnt_context_set_mattrs(struct libmnt_context *cxt, unsigned long flags)
+{
+	if (!cxt)
+		return -EINVAL;
+
+	cxt->mountattrs = flags;
+
+	if ((cxt->flags & MNT_FL_MOUNTOPTS_FIXED) && cxt->fs)
+		/*
+		 * the final mount options are already generated, refresh...
+		 */
+		return mnt_optstr_apply_flags(
+				&cxt->fs->vfs_optstr,
+				cxt->mountattrs,
+				mnt_get_builtin_optmap(MNT_LINUX_ATTRS_MAP));
+
+	return 0;
+}
+
+/**
+ * mnt_context_get_mattrs:
+ * @cxt: mount context
+ * @flags: returns MOUNT_ATTR_* kernel flags
+ *
+ * Converts mount options string to MOUNT_ATTR_* flags and bitwise-OR the result with
+ * the already defined flags (see mnt_context_set_mattrs()).
+ *
+ * Returns: 0 on success, negative number in case of error.
+ */
+int mnt_context_get_mattrs(struct libmnt_context *cxt, unsigned long *flags)
+{
+	int rc = 0;
+
+	if (!cxt || !flags)
+		return -EINVAL;
+
+	*flags = 0;
+
+	if (cxt->flags & MNT_FL_MOUNTFLAGS_MERGED)
+		/*
+		 * Mount options already merged to the flags
+		 */
+		*flags |= cxt->mountattrs;
+	else {
+		/*
+		 * Mount options not yet processed by library, generate the
+		 * flags on-the fly
+		 */
+		if (cxt->fs) {
+			const char *o = mnt_fs_get_options(cxt->fs);
+
+			if (o)
+				rc = mnt_optstr_get_flags(o, flags,
+					    mnt_get_builtin_optmap(MNT_LINUX_ATTRS_MAP));
+		}
+		/* Add flags defined by mnt_context_set_mattrs */
+		*flags |= cxt->mountattrs;
 	}
 	return rc;
 }
@@ -2082,31 +2150,50 @@ int mnt_context_prepare_helper(struct libmnt_context *cxt, const char *name,
 }
 
 /*
- * Create cxt->mountflags from options and already defined flags. Note that the
- * flags may be later modified, the original is stored in cxt->orig_mountflags.
+ * Generate classic mount(2) MS_* flags and new MOUNT_ATTR_* from defined mount options
+ * and mount flags.
+ *
+ *  cxt->mountflags		- classic kernel MS_* flags (including propagation)
+ *  cxt->orig_mountflags	- flags may be later modified, this is the original
+ *  cxt->user_mountflags	- userspace MNT_MS_* flags (loop=, offset=, etc)
+ *
+ *  cxt->mountattrs		- new kernel API MOUNT_ATTRS_*
  */
-int mnt_context_merge_mflags(struct libmnt_context *cxt)
+int mnt_context_merge_api_flags(struct libmnt_context *cxt)
 {
-	unsigned long fl = 0;
+	unsigned long fl;
 	int rc;
 
 	assert(cxt);
 
 	DBG(CXT, ul_debugobj(cxt, "merging mount flags"));
 
+	/* MS_* flags */
+	fl = 0;
 	rc = mnt_context_get_mflags(cxt, &fl);
 	if (rc)
 		return rc;
 	cxt->orig_mountflags = cxt->mountflags = fl;
 
+	/* MOUNT_ATTR_* flags */
+	fl = 0;
+	rc = mnt_context_get_mattrs(cxt, &fl);
+	if (rc)
+		return rc;
+	cxt->mountattrs = fl;
+
+	/* MNT_MS_* flags */
 	fl = 0;
 	rc = mnt_context_get_user_mflags(cxt, &fl);
 	if (rc)
 		return rc;
 	cxt->user_mountflags = fl;
 
-	DBG(CXT, ul_debugobj(cxt, "final flags: VFS=%08lx user=%08lx",
-			cxt->mountflags, cxt->user_mountflags));
+
+	DBG(CXT, ul_debugobj(cxt, "final flags: VFS(MS_*)=%08lx VFS(MOUNT_ATTR_*)=%08lx user=%08lx",
+			cxt->mountflags,
+			cxt->mountattrs,
+			cxt->user_mountflags));
 
 	cxt->flags |= MNT_FL_MOUNTFLAGS_MERGED;
 

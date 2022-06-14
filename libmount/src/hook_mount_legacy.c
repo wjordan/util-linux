@@ -205,6 +205,12 @@ static int prepare_bindremount(struct libmnt_context *cxt,
 
 /* call mount(2) for regular FS mount, mount flags and options are read from
  * library context struct. There are no private hook data.
+ *
+ * May be called in loop when libmount tries more FS types!
+ *
+ * Returns: 0 on success;
+ *         >0 in case of mount(2) error (returns syscall errno),
+ *         <0 in case of other errors.
  */
 static int hook_mount(struct libmnt_context *cxt,
 		      const struct libmnt_hookset *hs,
@@ -260,8 +266,8 @@ static int hook_prepare(struct libmnt_context *cxt,
 
 #ifdef UL_HAVE_MOUNT_API
 	/* do nothing when __mount succesfully registred */
-	if (mnt_context_has_hook(cxt, &hookset_mount, 0, NULL))
-		return 0;
+//	if (mnt_context_has_hook(cxt, &hookset_mount, 0, NULL))
+//		return 0;
 #endif
 	/* add extra mount(2) calls for each propagation flag  */
 	if (cxt->mountflags & MS_PROPAGATION) {
